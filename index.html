@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RecipeAI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --navy: #193153;
+      --teal: #0B5777;
+      --pink: #F9D4E0;
+      --purple: #EB96FF;
+      --glass: rgba(11, 87, 119, 0.35);
+      --glass-border: rgba(249, 212, 224, 0.15);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      background: var(--navy);
+      font-family: 'DM Sans', sans-serif;
+      color: var(--pink);
+      overflow-x: hidden;
+    }
+
+    /* Animated background blobs */
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+    }
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.35;
+      animation: float 10s ease-in-out infinite alternate;
+    }
+    .blob1 { width: 500px; height: 500px; background: var(--purple); top: -100px; left: -100px; animation-duration: 12s; }
+    .blob2 { width: 400px; height: 400px; background: var(--teal); bottom: -80px; right: -80px; animation-duration: 9s; }
+    .blob3 { width: 300px; height: 300px; background: #F9D4E0; top: 50%; left: 50%; transform: translate(-50%, -50%); animation-duration: 14s; opacity: 0.15; }
+
+    @keyframes float {
+      from { transform: translate(0, 0) scale(1); }
+      to   { transform: translate(30px, 20px) scale(1.05); }
+    }
+
+    /* Layout */
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 60px 24px 100px;
+    }
+
+    /* Hero */
+    .hero {
+      text-align: center;
+      margin-bottom: 52px;
+      animation: fadeUp 0.8s ease both;
+    }
+    .hero-badge {
+      display: inline-block;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 100px;
+      padding: 6px 18px;
+      font-size: 12px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--purple);
+      margin-bottom: 20px;
+      backdrop-filter: blur(10px);
+    }
+    .hero h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(48px, 8vw, 80px);
+      font-weight: 900;
+      line-height: 1;
+      color: #fff;
+      margin-bottom: 16px;
+    }
+    .hero h1 span { color: var(--purple); }
+    .hero p {
+      font-size: 16px;
+      color: rgba(249,212,224,0.65);
+      font-weight: 300;
+      letter-spacing: 0.3px;
+    }
+
+    /* Input card */
+    .card {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      padding: 36px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      margin-bottom: 40px;
+      animation: fadeUp 0.8s 0.15s ease both;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .input-label {
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--purple);
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+    .input-wrap svg {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      opacity: 0.5;
+    }
+
+    input[type="text"], input[type="number"] {
+      width: 100%;
+      background: rgba(25, 49, 83, 0.6);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 14px 16px 14px 46px;
+      color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input[type="number"] { padding-left: 16px; }
+    input::placeholder { color: rgba(249,212,224,0.3); }
+    input:focus {
+      border-color: var(--purple);
+      box-shadow: 0 0 0 3px rgba(235,150,255,0.15);
+    }
+
+    .row { display: flex; gap: 14px; align-items: flex-end; }
+    .row > div:first-child { flex: 1; }
+    .row > div:last-child { width: 140px; }
+
+    .btn {
+      width: 100%;
+      padding: 15px;
+      background: var(--purple);
+      color: #193153;
+      border: none;
+      border-radius: 12px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+      transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(235,150,255,0.4);
+    }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    /* Spinner */
+    .spinner {
+      display: none;
+      width: 22px; height: 22px;
+      border: 3px solid rgba(25,49,83,0.3);
+      border-top-color: #193153;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Error */
+    .error-box {
+      display: none;
+      background: rgba(255,80,80,0.12);
+      border: 1px solid rgba(255,80,80,0.3);
+      border-radius: 12px;
+      padding: 16px 20px;
+      color: #ff8080;
+      font-size: 14px;
+      margin-bottom: 24px;
+      animation: fadeUp 0.4s ease both;
+    }
+
+    /* Results */
+    .results {
+      display: none;
+      animation: fadeUp 0.6s ease both;
+    }
+
+    .recipe-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(28px, 5vw, 42px);
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    .servings-tag {
+      display: inline-block;
+      background: rgba(235,150,255,0.15);
+      border: 1px solid rgba(235,150,255,0.3);
+      border-radius: 100px;
+      padding: 4px 14px;
+      font-size: 12px;
+      color: var(--purple);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 32px;
+    }
+
+    .section-title {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--purple);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--glass-border);
+    }
+
+    /* Ingredients */
+    .ingredients-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+      margin-bottom: 36px;
+    }
+    .ingredient-chip {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 14px;
+      color: var(--pink);
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .ingredient-chip::before {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--purple);
+      flex-shrink: 0;
+    }
+
+    /* Steps */
+    .steps-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-bottom: 36px;
+    }
+    .step-item {
+      display: flex;
+      gap: 16px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      backdrop-filter: blur(10px);
+    }
+    .step-num {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--purple);
+      opacity: 0.5;
+      line-height: 1.2;
+      flex-shrink: 0;
+      width: 28px;
+    }
+    .step-text {
+      font-size: 14px;
+      line-height: 1.7;
+      color: rgba(249,212,224,0.85);
+    }
+
+    /* Calories table */
+    .cal-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    .cal-table th {
+      text-align: left;
+      padding: 10px 14px;
+      font-size: 11px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--purple);
+      border-bottom: 1px solid var(--glass-border);
+    }
+    .cal-table td {
+      padding: 12px 14px;
+      color: rgba(249,212,224,0.8);
+      border-bottom: 1px solid rgba(249,212,224,0.05);
+    }
+    .cal-table tr:nth-child(even) td {
+      background: rgba(11,87,119,0.2);
+    }
+    .cal-na { color: rgba(249,212,224,0.3); font-style: italic; }
+    .cal-total {
+      background: rgba(235,150,255,0.1);
+      border: 1px solid rgba(235,150,255,0.2);
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .cal-total-label { font-size: 13px; color: var(--pink); }
+    .cal-total-value {
+      font-family: 'Playfair Display', serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--purple);
+    }
+    .cal-total-unit { font-size: 13px; color: rgba(249,212,224,0.5); margin-left: 4px; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 520px) {
+      .row { flex-direction: column; }
+      .row > div:last-child { width: 100%; }
+      .card { padding: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="bg">
+  <div class="blob blob1"></div>
+  <div class="blob blob2"></div>
+  <div class="blob blob3"></div>
+</div>
+
+<div class="page">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-badge">✦ AI Powered</div>
+    <h1>Recipe<span>AI</span></h1>
+    <p>Extract any recipe from YouTube — instantly.</p>
+  </div>
+
+  <!-- Input Card -->
+  <div class="card">
+    <div class="input-group">
+      <div>
+        <label class="input-label">YouTube URL</label>
+        <div class="input-wrap">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EB96FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58 2.78 2.78 0 0 0 1.95 1.96C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.96A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z"/>
+            <polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="#EB96FF" stroke="none"/>
+          </svg>
+          <input type="text" id="urlInput" placeholder="https://youtube.com/watch?v=... or /shorts/..."/>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label class="input-label">Servings (optional)</label>
+          <input type="number" id="servingsInput" placeholder="e.g. 4" min="1"/>
+        </div>
+        <div>
+          <button class="btn" id="submitBtn" onclick="fetchRecipe()">
+            <span id="btnText">Extract Recipe</span>
+            <div class="spinner" id="spinner"></div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div class="error-box" id="errorBox"></div>
+
+  <!-- Results -->
+  <div class="results" id="results">
+    <div class="recipe-title" id="recipeTitle"></div>
+    <div class="servings-tag" id="servingsTag"></div>
+
+    <div class="section-title">Ingredients</div>
+    <div class="ingredients-grid" id="ingredientsList"></div>
+
+    <div class="section-title">Steps</div>
+    <div class="steps-list" id="stepsList"></div>
+
+    <div class="section-title">Calories</div>
+    <table class="cal-table" id="calTable">
+      <thead><tr><th>Ingredient</th><th>Calories</th></tr></thead>
+      <tbody id="calBody"></tbody>
+    </table>
+    <div class="cal-total">
+      <span class="cal-total-label">Total for <span id="calServings"></span> serving(s)</span>
+      <div>
+        <span class="cal-total-value" id="calTotal"></span>
+        <span class="cal-total-unit">kcal</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const API = "https://youtube-recipe-production.up.railway.app/api/recipe";
+
+  async function fetchRecipe() {
+    const url = document.getElementById("urlInput").value.trim();
+    const servingsRaw = document.getElementById("servingsInput").value.trim();
+    const servings = servingsRaw ? parseInt(servingsRaw) : null;
+
+    if (!url) {
+      showError("Please paste a YouTube URL first.");
+      return;
+    }
+
+    setLoading(true);
+    hideError();
+    hideResults();
+
+    try {
+      const body = { youtube_url: url };
+      if (servings && servings > 0) body.servings = servings;
+
+      const res = await fetch(API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+
+      const data = await res.json();
+
+      if (data.error) {
+        showError(data.error);
+        return;
+      }
+
+      renderResults(data);
+
+    } catch (err) {
+      showError("Something went wrong. Check your internet connection and try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function renderResults(data) {
+    document.getElementById("recipeTitle").textContent = data.title || "Untitled Recipe";
+    document.getElementById("servingsTag").textContent = `${data.servings_requested} serving${data.servings_requested !== 1 ? "s" : ""}`;
+
+    // Ingredients
+    const ingList = document.getElementById("ingredientsList");
+    ingList.innerHTML = data.ingredients_display.map(i =>
+      `<div class="ingredient-chip">${i}</div>`
+    ).join("");
+
+    // Steps
+    const stepsList = document.getElementById("stepsList");
+    stepsList.innerHTML = data.steps.map((s, i) =>
+      `<div class="step-item">
+        <div class="step-num">${String(i+1).padStart(2,"0")}</div>
+        <div class="step-text">${s}</div>
+      </div>`
+    ).join("");
+
+    // Calories
+    const calBody = document.getElementById("calBody");
+    calBody.innerHTML = data.calorie_lines.map(line =>
+      line.status === "not_available"
+        ? `<tr><td>${line.ingredient}</td><td class="cal-na">n/a</td></tr>`
+        : `<tr><td>${line.ingredient}</td><td>${line.calories} kcal</td></tr>`
+    ).join("");
+
+    document.getElementById("calServings").textContent = data.servings_requested;
+    document.getElementById("calTotal").textContent = data.total_calories;
+
+    document.getElementById("results").style.display = "block";
+  }
+
+  function setLoading(on) {
+    const btn = document.getElementById("submitBtn");
+    const text = document.getElementById("btnText");
+    const spinner = document.getElementById("spinner");
+    btn.disabled = on;
+    text.style.display = on ? "none" : "inline";
+    spinner.style.display = on ? "block" : "none";
+  }
+
+  function showError(msg) {
+    const box = document.getElementById("errorBox");
+    box.textContent = "⚠ " + msg;
+    box.style.display = "block";
+  }
+  function hideError() { document.getElementById("errorBox").style.display = "none"; }
+  function hideResults() { document.getElementById("results").style.display = "none"; }
+
+  document.getElementById("urlInput").addEventListener("keydown", e => {
+    if (e.key === "Enter") fetchRecipe();
+  });
+</script>
+
+</body>
+</html>
