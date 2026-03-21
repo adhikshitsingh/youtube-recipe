@@ -2,7 +2,7 @@
 YouTube Transcript -> Recipe Extractor (Beginner-Friendly)
 
 Install dependencies:
-    pip install youtube-transcript-api requests
+    pip install requests
 
 Set environment variables before running:
     # Paid cloud (OpenAI-compatible):
@@ -15,6 +15,7 @@ Set environment variables before running:
     # OPENAI_BASE_URL=https://api.groq.com/openai/v1
     # OPENAI_MODEL=llama3-70b-8192
     # SPOONACULAR_API_KEY=your_spoonacular_api_key
+    # SUPADATA_API_KEY=your_supadata_api_key
 
     # Free local option with Ollama (no API key required):
     # 1) Install Ollama and run a model, for example:
@@ -30,8 +31,6 @@ import re
 from urllib.parse import parse_qs, urlparse
 
 import requests
-from youtube_transcript_api import YouTubeTranscriptApi
-from youtube_transcript_api._errors import NoTranscriptFound, TranscriptsDisabled
 
 # Keep transcript short enough for API requests.
 MAX_TRANSCRIPT_CHARS = 12000
@@ -117,35 +116,25 @@ def extract_video_id(youtube_url: str) -> str:
 
 def get_transcript(video_id: str) -> str:
     """
-    Fetch transcript segments for a video ID and return one clean paragraph.
-    Raises RuntimeError if no transcript is available.
+    Fetch transcript using Supadata API (avoids YouTube IP blocks).
     """
+    api_key = os.getenv("SUPADATA_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("Missing SUPADATA_API_KEY.")
+
+    url = "https://api.supadata.ai/v1/youtube/transcript"
+    headers = {"x-api-key": api_key}
+    params = {"videoId": video_id, "text": "true"}
+
     try:
-        # Support both older and newer versions of youtube-transcript-api.
-        # Old API: YouTubeTranscriptApi.get_transcript(video_id)
-        # New API: YouTubeTranscriptApi().fetch(video_id)
-        if hasattr(YouTubeTranscriptApi, "get_transcript"):
-            transcript_data = YouTubeTranscriptApi.get_transcript(video_id)
-        else:
-            transcript_data = YouTubeTranscriptApi().fetch(video_id)
-
-        text_parts = []
-        for segment in transcript_data:
-            # Old API returns dicts: {"text": "..."}
-            if isinstance(segment, dict):
-                piece = segment.get("text", "").strip()
-            else:
-                # New API may return objects with ".text"
-                piece = str(getattr(segment, "text", "")).strip()
-
-            if piece:
-                text_parts.append(piece)
-
-        clean_text = " ".join(text_parts)
-        return " ".join(clean_text.split())  # remove extra spaces/newlines
-    except (NoTranscriptFound, TranscriptsDisabled):
-        raise RuntimeError("No transcript available for this video.")
-    except Exception as error:
+        response = requests.get(url, headers=headers, params=params, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        transcript = data.get("content", "")
+        if not transcript:
+            raise RuntimeError("No transcript available for this video.")
+        return transcript
+    except requests.RequestException as error:
         raise RuntimeError(f"Failed to fetch transcript: {error}")
 
 
